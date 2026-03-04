@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEXUS // COMBAT PROTOCOL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --cyan:     #00f5ff;
+  --magenta:  #ff00aa;
+  --yellow:   #ffe600;
+  --green:    #00ff88;
+  --red:      #ff2244;
+  --dark:     #04080f;
+  --dark2:    #080d18;
+  --dark3:    #0c1424;
+  --glass:    rgba(0, 245, 255, 0.04);
+  --glass-b:  rgba(0, 245, 255, 0.12);
+  --font-head: 'Orbitron', monospace;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--dark);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  cursor: crosshair;
+}
+
+#bg-canvas {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+}
+
+.scanlines {
+  position: fixed; inset: 0; z-index: 1;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+  pointer-events: none;
+  animation: scanroll 8s linear infinite;
+}
+@keyframes scanroll { from { background-position: 0 0; } to { background-position: 0 100vh; } }
+
+.vignette {
+  position: fixed; inset: 0; z-index: 2;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.75) 100%);
+  pointer-events: none;
+}
+
+.screen {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+.screen.active { opacity: 1; pointer-events: all; }
+
+/* ── LANDING ── */
+#screen-landing { flex-direction: column; }
+
+.landing-inner {
+  text-align: center;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 1.4rem;
+}
+
+.glitch-wrapper { line-height: 1; }
+
+.glitch {
+  font-family: var(--font-head);
+  font-size: clamp(4rem, 14vw, 11rem);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: var(--cyan);
+  text-shadow: 0 0 20px var(--cyan), 0 0 60px var(--cyan), 0 0 120px rgba(0,245,255,0.4);
+  position: relative;
+  animation: glitch-base 3s infinite;
+}
+.glitch::before, .glitch::after {
+  content: attr(data-text);
+  position: absolute; top: 0; left: 0; width: 100%;
+}
+.glitch::before {
+  color: var(--magenta);
+  animation: glitch-1 3s infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+  text-shadow: -3px 0 var(--magenta);
+}
+.glitch::after {
+  color: var(--cyan);
+  animation: glitch-2 3s infinite;
+  clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+  text-shadow: 3px 0 var(--yellow);
+}
+@keyframes glitch-base {
+  0%,90%,100% { transform: none; }
+  91%  { transform: skewX(-1deg); }
+  93%  { transform: skewX(1deg) scaleX(1.01); }
+  95%  { transform: skewX(-0.5deg); }
+}
+@keyframes glitch-1 {
+  0%,89%,100% { transform: none; opacity: 0; }
+  90% { transform: translate(-4px, -2px); opacity: 0.8; }
+  92% { transform: translate(4px, 2px); opacity: 0.6; }
+  94% { transform: translate(-2px, 0); opacity: 0.9; }
+  96% { opacity: 0; }
+}
+@keyframes glitch-2 {
+  0%,89%,100% { transform: none; opacity: 0; }
+  91% { transform: translate(4px, 3px); opacity: 0.7; }
+  93% { transform: translate(-4px, -1px); opacity: 0.5; }
+  95% { transform: translate(2px, 1px); opacity: 0.8; }
+  97% { opacity: 0; }
+}
+
+.subtitle-line {
+  display: flex; gap: 1rem; align-items: center;
+  font-family: var(--font-mono);
+  font-size: clamp(0.65rem, 1.8vw, 0.9rem);
+  letter-spacing: 0.3em;
+  color: rgba(0,245,255,0.6);
+}
+.subtitle-deco { color: var(--magenta); }
+
+.landing-desc {
+  font-size: clamp(0.7rem, 1.5vw, 0.85rem);
+  line-height: 1.9;
+  color: rgba(0,245,255,0.45);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.boot-lines {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: rgba(0,255,136,0.7);
+  letter-spacing: 0.05em;
+  text-align: left;
+  min-height: 5rem;
+  padding: 0.5rem 1rem;
+  border-left: 1px solid rgba(0,255,136,0.3);
+}
+.boot-line { display: block; animation: fadeInLine 0.2s ease forwards; }
+@keyframes fadeInLine { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; } }
+
+.btn-start {
+  position: relative;
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--font-head);
+  font-size: clamp(0.75rem, 1.8vw, 0.95rem);
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  padding: 1rem 3rem;
+  cursor: crosshair;
+  overflow: hidden;
+  transition: color 0.3s, transform 0.2s;
+  clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+}
+.btn-start::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--cyan);
+  transform: translateX(-105%);
+  transition: transform 0.4s cubic-bezier(0.77,0,0.175,1);
+  z-index: 0;
+}
+.btn-start:hover::before { transform: translateX(0); }
+.btn-start:hover { color: var(--dark); transform: scale(1.03); }
+.btn-inner { position: relative; z-index: 1; }
+.btn-glow {
+  position: absolute; inset: -1px;
+  box-shadow: 0 0 20px var(--cyan), 0 0 60px rgba(0,245,255,0.3);
+  opacity: 0; transition: opacity 0.3s;
+}
+.btn-start:hover .btn-glow { opacity: 1; }
+
+/* ── ARENA ── */
+#screen-arena { flex-direction: column; justify-content: flex-start; padding: 0; }
+
+.hud-bar {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0.8rem 2rem;
+  border-bottom: 1px solid rgba(0,245,255,0.15);
+  background: rgba(4,8,15,0.8);
+  backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 50;
+}
+.hud-bar::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), var(--magenta), var(--cyan), transparent);
+  animation: hudScan 4s linear infinite;
+  background-size: 200% 100%;
+}
+@keyframes hudScan { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+.hud-side { display: flex; align-items: center; gap: 1rem; }
+.hud-right { justify-content: flex-end; }
+.hud-label {
+  font-family: var(--font-head);
+  font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgba(0,245,255,0.5);
+}
+.score-display {
+  font-family: var(--font-head);
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  font-weight: 900; color: var(--cyan);
+  text-shadow: 0 0 20px var(--cyan);
+  min-width: 2.5rem; text-align: center;
+  transition: transform 0.2s, color 0.3s;
+}
+.score-display.bump { animation: scoreBump 0.4s ease; }
+@keyframes scoreBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.5); color: var(--green); }
+  100% { transform: scale(1); }
+}
+.hud-center { text-align: center; }
+.round-info {
+  font-family: var(--font-head);
+  font-size: 0.6rem; letter-spacing: 0.25em;
+  color: rgba(0,245,255,0.35);
+}
+.status-msg {
+  font-family: var(--font-mono);
+  font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+  letter-spacing: 0.15em; color: var(--magenta);
+  text-transform: uppercase; transition: color 0.3s;
+  animation: statusPulse 2s ease-in-out infinite;
+}
+@keyframes statusPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+.arena-floor {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  align-items: center;
+  padding: 1rem 2rem 2rem;
+  width: 100%;
+  max-height: calc(100vh - 80px);
+}
+
+.combatant-zone { display: flex; flex-direction: column; align-items: center; gap: 1.2rem; }
+.zone-label {
+  font-family: var(--font-head);
+  font-size: 0.6rem; letter-spacing: 0.3em;
+  color: rgba(0,245,255,0.3);
+}
+
+/* ── Weapon cards ── */
+.weapons-grid { display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap; }
+
+.weapon-card {
+  position: relative;
+  width: clamp(110px, 20vw, 165px);
+  height: clamp(140px, 26vw, 210px);
+  cursor: crosshair; outline: none;
+  border: 1px solid rgba(0,245,255,0.2);
+  clip-path: polygon(15px 0%, 100% 0%, calc(100% - 15px) 100%, 0% 100%);
+  transition: border-color 0.3s, transform 0.3s;
+  overflow: hidden;
+  background: var(--glass);
+}
+.card-bg {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0,245,255,0.06) 0%, transparent 70%);
+  transition: background 0.3s;
+}
+.weapon-card:hover, .weapon-card:focus {
+  transform: translateY(-6px) scale(1.04); z-index: 5;
+}
+.weapon-card:hover .card-bg {
+  background: radial-gradient(ellipse at center, rgba(0,245,255,0.15) 0%, transparent 70%);
+}
+
+#w-rock   { border-color: rgba(255,0,170,0.25); }
+#w-paper  { border-color: rgba(0,245,255,0.25); }
+#w-scissors { border-color: rgba(255,230,0,0.25); }
+#w-rock:hover   { border-color: rgba(255,0,170,0.85); }
+#w-paper:hover  { border-color: rgba(0,245,255,0.85); }
+#w-scissors:hover { border-color: rgba(255,230,0,0.85); }
+#w-rock   .card-orb { color: #ff00aa; }
+#w-paper  .card-orb { color: #00f5ff; }
+#w-scissors .card-orb { color: #ffe600; }
+
+.card-orb {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -55%);
+  width: clamp(70px, 12vw, 100px);
+  height: clamp(70px, 12vw, 100px);
+}
+.orb-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid currentColor; opacity: 0.3;
+}
+.r1 { inset: 0; animation: spinRing 5s linear infinite; }
+.r2 { inset: 8px; animation: spinRing 3.5s linear infinite reverse; opacity: 0.2; }
+.r3 { inset: 16px; animation: spinRing 7s linear infinite; opacity: 0.15; }
+@keyframes spinRing { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.weapon-icon {
+  position: absolute; inset: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.weapon-icon svg {
+  width: 100%; height: 100%;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+.weapon-card:hover .weapon-icon svg {
+  filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 0 28px currentColor);
+}
+.card-label {
+  position: absolute; bottom: 30px; left: 0; right: 0;
+  text-align: center; font-family: var(--font-head);
+  font-size: clamp(0.6rem, 1.2vw, 0.75rem);
+  font-weight: 700; letter-spacing: 0.2em;
+}
+.card-sublabel {
+  position: absolute; bottom: 14px; left: 0; right: 0;
+  text-align: center; font-family: var(--font-mono);
+  font-size: 0.58rem; opacity: 0.4; letter-spacing: 0.1em;
+}
+.weapon-card.selected { animation: cardSelected 0.4s ease forwards; pointer-events: none; }
+@keyframes cardSelected {
+  0%  { transform: translateY(-6px) scale(1.04); }
+  40% { transform: translateY(-16px) scale(1.08); }
+  70% { transform: translateY(-10px) scale(1.05); }
+  100% { transform: translateY(-8px) scale(1.05); }
+}
+.weapons-grid.locked .weapon-card:not(.selected) { opacity: 0.2; pointer-events: none; transform: none; }
+
+/* ── VS divider ── */
+.vs-divider { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; position: relative; }
+.vs-line { width: 1px; flex: 1; background: linear-gradient(180deg, transparent, rgba(0,245,255,0.3), transparent); }
+.vs-badge {
+  font-family: var(--font-head); font-size: 0.7rem; font-weight: 900;
+  letter-spacing: 0.15em; color: rgba(0,245,255,0.4);
+  border: 1px solid rgba(0,245,255,0.2);
+  padding: 0.3rem 0.4rem;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+
+/* ── AI orb ── */
+.ai-orb-container { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.ai-orb {
+  position: relative;
+  width: clamp(120px, 22vw, 200px);
+  height: clamp(120px, 22vw, 200px);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.ai-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(0,245,255,0.25); }
+.ar1 { animation: aiSpin1 6s linear infinite; border-color: rgba(0,245,255,0.3); }
+.ar2 { inset: 12px; animation: aiSpin2 4s linear infinite; border-color: rgba(255,0,170,0.25); }
+.ar3 { inset: 24px; animation: aiSpin1 9s linear infinite; border-color: rgba(255,230,0,0.2); }
+@keyframes aiSpin1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes aiSpin2 { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+.ai-pulse {
+  position: absolute; inset: 30px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,245,255,0.12) 0%, transparent 70%);
+  animation: aiPulse 2s ease-in-out infinite;
+}
+@keyframes aiPulse { 0%,100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.15); opacity: 0.4; } }
+.ai-choice-display {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  width: 70%; height: 70%;
+}
+.ai-question {
+  font-family: var(--font-head);
+  font-size: clamp(1.8rem, 5vw, 3.5rem); font-weight: 900;
+  color: var(--cyan); text-shadow: 0 0 30px var(--cyan);
+  animation: qPulse 1.5s ease-in-out infinite;
+}
+@keyframes qPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.ai-choice-display svg { width: 65%; height: 65%; filter: drop-shadow(0 0 12px var(--cyan)); display: none; }
+.ai-choice-display.revealed .ai-question { display: none; }
+.ai-choice-display.revealed svg { display: block; }
+.ai-status { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.2em; color: rgba(0,245,255,0.4); text-transform: uppercase; }
+
+/* ── Countdown ── */
+.countdown-overlay {
+  position: fixed; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0;
+}
+.countdown-overlay.active { opacity: 1; }
+.countdown-num {
+  font-family: var(--font-head);
+  font-size: clamp(6rem, 25vw, 20rem); font-weight: 900;
+  color: transparent; -webkit-text-stroke: 2px var(--cyan);
+  text-shadow: 0 0 80px rgba(0,245,255,0.5);
+}
+.countdown-num.tick { animation: countTick 0.8s ease forwards; }
+@keyframes countTick {
+  0%  { transform: scale(1.4); opacity: 1; }
+  60% { transform: scale(0.95); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.05; }
+}
+.countdown-num.go { animation: countGo 0.6s ease forwards; }
+@keyframes countGo {
+  0%  { transform: scale(0.5); opacity: 0; -webkit-text-stroke-color: var(--green); text-shadow: none; }
+  50% { transform: scale(1.2); opacity: 1; text-shadow: 0 0 120px var(--green); }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+/* ── Result overlay ── */
+.result-overlay {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none; opacity: 0;
+  transition: opacity 0.4s ease;
+  background: rgba(4,8,15,0.7);
+  backdrop-filter: blur(6px);
+}
+.result-overlay.active { opacity: 1; pointer-events: all; }
+.result-inner {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 1.5rem;
+  padding: 2.5rem 4rem;
+  border: 1px solid rgba(0,245,255,0.3);
+  background: rgba(4,8,15,0.8);
+  clip-path: polygon(20px 0%, 100% 0%, calc(100% - 20px) 100%, 0% 100%);
+  position: relative; overflow: hidden;
+}
+.result-inner::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation: lineSlide 3s linear infinite;
+}
+@keyframes lineSlide { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.result-versus { display: flex; align-items: center; gap: 2rem; }
+.rv-player, .rv-ai { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.rv-icon { font-family: var(--font-head); font-size: clamp(1.5rem, 4vw, 2.2rem); font-weight: 900; letter-spacing: 0.1em; }
+.rv-label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.25em; color: rgba(0,245,255,0.45); }
+.rv-vs { font-size: 1.8rem; animation: flashVs 0.8s ease infinite; }
+@keyframes flashVs { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.result-verdict {
+  font-family: var(--font-head);
+  font-size: clamp(1.8rem, 6vw, 3.5rem); font-weight: 900;
+  letter-spacing: 0.15em; text-shadow: 0 0 40px currentColor;
+  animation: verdictIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes verdictIn { from { transform: scale(0.3) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+.result-verdict.win  { color: var(--green); }
+.result-verdict.lose { color: var(--red); }
+.result-verdict.draw { color: var(--yellow); }
+.result-flavor { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.12em; color: rgba(0,245,255,0.5); }
+.btn-again {
+  background: transparent; border: 1px solid rgba(0,245,255,0.5);
+  color: var(--cyan); font-family: var(--font-head);
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.25em;
+  padding: 0.8rem 2.5rem; cursor: crosshair;
+  clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+  position: relative; overflow: hidden; transition: color 0.3s;
+}
+.btn-again::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--cyan); transform: translateX(-105%);
+  transition: transform 0.35s cubic-bezier(0.77,0,0.175,1);
+}
+.btn-again:hover::before { transform: translateX(0); }
+.btn-again:hover { color: var(--dark); }
+.btn-again span { position: relative; z-index: 1; }
+
+/* ── Particles ── */
+#burst-container { position: fixed; inset: 0; z-index: 95; pointer-events: none; overflow: hidden; }
+.particle {
+  position: absolute; border-radius: 50%;
+  animation: particleFly var(--d, 0.8s) ease forwards;
+}
+@keyframes particleFly {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+
+#clash-canvas { position: fixed; inset: 0; z-index: 92; pointer-events: none; }
+
+@keyframes shake {
+  0%,100% { transform: translate(0,0) rotate(0deg); }
+  15% { transform: translate(-8px, 4px) rotate(-0.5deg); }
+  30% { transform: translate(8px, -6px) rotate(0.5deg); }
+  45% { transform: translate(-6px, 8px) rotate(-0.3deg); }
+  60% { transform: translate(10px, 2px) rotate(0.4deg); }
+  75% { transform: translate(-4px, -8px) rotate(-0.2deg); }
+  90% { transform: translate(6px, 4px) rotate(0.3deg); }
+}
+body.shake { animation: shake 0.5s ease; }
+
+@media (max-width: 700px) {
+  .arena-floor {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 1rem; padding: 0.8rem; overflow-y: auto;
+  }
+  .vs-divider { flex-direction: row; height: auto; }
+  .vs-line { height: 1px; flex: 1; background: linear-gradient(90deg, transparent, rgba(0,245,255,0.3), transparent); }
+  .hud-bar { padding: 0.6rem 1rem; }
+  .weapons-grid { gap: 0.8rem; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<!-- LANDING SCREEN -->
+<div id="screen-landing" class="screen active">
+  <div class="landing-inner">
+    <div class="glitch-wrapper">
+      <h1 class="glitch" data-text="NEXUS">NEXUS</h1>
+    </div>
+    <div class="subtitle-line">
+      <span class="subtitle-deco">//</span>
+      <span class="subtitle-text">COMBAT PROTOCOL v2.0.77</span>
+      <span class="subtitle-deco">//</span>
+    </div>
+    <p class="landing-desc">Neural combat simulation. Human vs Machine.<br/>Initiate sequence to begin.</p>
+    <div class="boot-lines" id="boot-lines"></div>
+    <button class="btn-start" id="btn-start">
+      <span class="btn-inner">INITIATE COMBAT</span>
+      <span class="btn-glow"></span>
+    </button>
+  </div>
+</div>
+
+<!-- ARENA SCREEN -->
+<div id="screen-arena" class="screen">
+
+  <div class="hud-bar">
+    <div class="hud-side hud-left">
+      <span class="hud-label">HUMAN</span>
+      <div class="score-display" id="score-human">00</div>
+    </div>
+    <div class="hud-center">
+      <div class="round-info">ROUND <span id="round-num">01</span></div>
+      <div class="status-msg" id="status-msg">SELECT YOUR WEAPON</div>
+    </div>
+    <div class="hud-side hud-right">
+      <div class="score-display" id="score-ai">00</div>
+      <span class="hud-label">NEXUS</span>
+    </div>
+  </div>
+
+  <div class="arena-floor">
+
+    <!-- Player zone -->
+    <div class="combatant-zone" id="zone-player">
+      <div class="zone-label">YOUR ARSENAL</div>
+      <div class="weapons-grid" id="weapons-grid">
+
+        <div class="weapon-card" id="w-rock" data-choice="rock" tabindex="0" role="button" aria-label="Rock">
+          <div class="card-bg"></div>
+          <div class="card-orb">
+            <div class="orb-ring r1"></div>
+            <div class="orb-ring r2"></div>
+            <div class="orb-ring r3"></div>
+            <div class="weapon-icon">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="50" cy="62" rx="28" ry="22" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="30" y="30" width="12" height="22" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="44" y="26" width="12" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="58" y="28" width="12" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="22" y="38" width="10" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="3"/>
+              </svg>
+            </div>
+          </div>
+          <div class="card-label">ROCK</div>
+          <div class="card-sublabel">[ CRUSH ]</div>
+        </div>
+
+        <div class="weapon-card" id="w-paper" data-choice="paper" tabindex="0" role="button" aria-label="Paper">
+          <div class="card-bg"></div>
+          <div class="card-orb">
+            <div class="orb-ring r1"></div>
+            <div class="orb-ring r2"></div>
+            <div class="orb-ring r3"></div>
+            <div class="weapon-icon">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="30" y="40" width="12" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="44" y="30" width="12" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="58" y="32" width="12" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="22" y="44" width="10" height="26" rx="5" fill="none" stroke="currentColor" stroke-width="3"/>
+                <path d="M30 62 Q50 72 70 62" fill="none" stroke="currentColor" stroke-width="3"/>
+              </svg>
+            </div>
+          </div>
+          <div class="card-label">PAPER</div>
+          <div class="card-sublabel">[ WRAP ]</div>
+        </div>
+
+        <div class="weapon-card" id="w-scissors" data-choice="scissors" tabindex="0" role="button" aria-label="Scissors">
+          <div class="card-bg"></div>
+          <div class="card-orb">
+            <div class="orb-ring r1"></div>
+            <div class="orb-ring r2"></div>
+            <div class="orb-ring r3"></div>
+            <div class="weapon-icon">
+              <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <rect x="36" y="28" width="12" height="40" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="52" y="28" width="12" height="40" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+                <path d="M36 68 Q50 82 64 68" fill="none" stroke="currentColor" stroke-width="3"/>
+                <line x1="42" y1="52" x2="58" y2="52" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 3"/>
+              </svg>
+            </div>
+          </div>
+          <div class="card-label">SCISSORS</div>
+          <div class="card-sublabel">[ CUT ]</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="vs-divider">
+      <div class="vs-line top"></div>
+      <div class="vs-badge">VS</div>
+      <div class="vs-line bottom"></div>
+    </div>
+
+    <!-- AI zone -->
+    <div class="combatant-zone" id="zone-ai">
+      <div class="zone-label">NEXUS CORE</div>
+      <div class="ai-orb-container">
+        <div class="ai-orb" id="ai-orb">
+          <div class="ai-ring ar1"></div>
+          <div class="ai-ring ar2"></div>
+          <div class="ai-ring ar3"></div>
+          <div class="ai-pulse"></div>
+          <div class="ai-choice-display" id="ai-choice-display">
+            <span class="ai-question">?</span>
+          </div>
+        </div>
+        <div class="ai-status" id="ai-status">CALCULATING...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="countdown-overlay" id="countdown-overlay">
+    <div class="countdown-num" id="countdown-num">3</div>
+  </div>
+
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-inner">
+      <div class="result-versus">
+        <div class="rv-player">
+          <span class="rv-icon" id="rv-player-icon"></span>
+          <span class="rv-label">YOU</span>
+        </div>
+        <div class="rv-vs">⚡</div>
+        <div class="rv-ai">
+          <span class="rv-icon" id="rv-ai-icon"></span>
+          <span class="rv-label">NEXUS</span>
+        </div>
+      </div>
+      <div class="result-verdict" id="result-verdict"></div>
+      <div class="result-flavor" id="result-flavor"></div>
+      <button class="btn-again" id="btn-again"><span>NEXT ROUND</span></button>
+    </div>
+  </div>
+
+</div><!-- /screen-arena -->
+
+<div id="burst-container"></div>
+<canvas id="clash-canvas"></canvas>
+
+<script>
+const STATE = {
+  scores: { human: 0, ai: 0 },
+  round: 1,
+  phase: 'landing',
+  playerChoice: null,
+  aiChoice: null,
+  resultType: null,
+};
+
+const CHOICES = ['rock', 'paper', 'scissors'];
+const OUTCOMES = {
+  rock:     { beats: 'scissors' },
+  paper:    { beats: 'rock' },
+  scissors: { beats: 'paper' },
+};
+const FLAVOR = {
+  win:  ['NEURAL DOMINANCE', 'SYSTEM OVERRIDE', 'SUPERIOR PROTOCOL', 'NEXUS DEFEATED'],
+  lose: ['COMBAT FAILURE', 'NEXUS PREVAILS', 'RECALIBRATE', 'HUMAN ERROR'],
+  draw: ['STALEMATE', 'EQUAL FORCES', 'DEADLOCK', 'SYSTEM TIE'],
+};
+
+const $ = id => document.getElementById(id);
+const screenLanding    = $('screen-landing');
+const screenArena      = $('screen-arena');
+const btnStart         = $('btn-start');
+const weaponsGrid      = $('weapons-grid');
+const weaponCards      = document.querySelectorAll('.weapon-card');
+const scoreHumanEl     = $('score-human');
+const scoreAiEl        = $('score-ai');
+const roundNumEl       = $('round-num');
+const statusMsgEl      = $('status-msg');
+const countdownOverlay = $('countdown-overlay');
+const countdownNum     = $('countdown-num');
+const resultOverlay    = $('result-overlay');
+const resultVerdict    = $('result-verdict');
+const resultFlavor     = $('result-flavor');
+const rvPlayerIcon     = $('rv-player-icon');
+const rvAiIcon         = $('rv-ai-icon');
+const btnAgain         = $('btn-again');
+const aiChoiceDisplay  = $('ai-choice-display');
+const aiStatus         = $('ai-status');
+const burstContainer   = $('burst-container');
+const clashCanvas      = $('clash-canvas');
+const bgCanvas         = $('bg-canvas');
+
+// ── Background neural particle field ──────────────────────
+(function() {
+  const ctx = bgCanvas.getContext('2d');
+  let W, H, particles = [];
+  function resize() { W = bgCanvas.width = window.innerWidth; H = bgCanvas.height = window.innerHeight; }
+  function spawn() {
+    particles = [];
+    const n = Math.min(Math.floor(W * H / 10000), 120);
+    for (let i = 0; i < n; i++) particles.push({
+      x: Math.random()*W, y: Math.random()*H,
+      vx: (Math.random()-0.5)*0.35, vy: (Math.random()-0.5)*0.35,
+      r: Math.random()*1.5+0.5, hue: Math.random()>0.7?300:185
+    });
+  }
+  window.addEventListener('resize', () => { resize(); spawn(); });
+  resize(); spawn();
+  (function draw() {
+    ctx.clearRect(0,0,W,H);
+    for (let i=0;i<particles.length;i++) for (let j=i+1;j<particles.length;j++) {
+      const dx=particles[i].x-particles[j].x, dy=particles[i].y-particles[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if (d<120) {
+        ctx.beginPath(); ctx.moveTo(particles[i].x,particles[i].y); ctx.lineTo(particles[j].x,particles[j].y);
+        ctx.strokeStyle=`hsla(185,100%,60%,${(1-d/120)*0.18})`; ctx.lineWidth=0.5; ctx.stroke();
+      }
+    }
+    particles.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`hsla(${p.hue},100%,65%,0.7)`; ctx.fill();
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+      if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+    });
+    requestAnimationFrame(draw);
+  })();
+})();
+
+// ── Boot sequence ──────────────────────────────────────────
+(function() {
+  const msgs = [
+    '> INITIALIZING NEURAL COMBAT ENGINE...',
+    '> LOADING WEAPON MATRICES............OK',
+    '> CALIBRATING AI CORE...............OK',
+    '> ESTABLISHING QUANTUM LINK.........OK',
+    '> COMBAT PROTOCOLS: LOADED',
+    '> AWAITING OPERATOR INPUT_',
+  ];
+  const c = $('boot-lines'); let i=0;
+  (function next() {
+    if (i>=msgs.length) return;
+    const s=document.createElement('span'); s.className='boot-line'; s.textContent=msgs[i++];
+    c.appendChild(s); setTimeout(next, 260+Math.random()*180);
+  })();
+})();
+
+// ── Screen transition ──────────────────────────────────────
+btnStart.addEventListener('click', () => {
+  screenLanding.classList.remove('active');
+  setTimeout(() => { screenArena.classList.add('active'); STATE.phase='pick'; setStatus('SELECT YOUR WEAPON'); }, 600);
+});
+
+// ── Weapon pick ────────────────────────────────────────────
+weaponCards.forEach(c => {
+  c.addEventListener('click', () => pick(c.dataset.choice));
+  c.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' ') pick(c.dataset.choice); });
+});
+
+function pick(choice) {
+  if (STATE.phase !== 'pick') return;
+  STATE.phase = 'countdown'; STATE.playerChoice = choice;
+  weaponCards.forEach(c => c.classList.remove('selected'));
+  $(`w-${choice}`).classList.add('selected');
+  weaponsGrid.classList.add('locked');
+  setStatus('COMBAT SEQUENCE INITIATED');
+  countdown();
+}
+
+// ── Countdown ──────────────────────────────────────────────
+function countdown() {
+  countdownOverlay.classList.add('active');
+  const seq = ['3','2','1','GO']; let i=0;
+  (function tick() {
+    if (i>=seq.length) { countdownOverlay.classList.remove('active'); reveal(); return; }
+    const v=seq[i++];
+    countdownNum.textContent=v;
+    countdownNum.classList.remove('tick','go'); void countdownNum.offsetWidth;
+    countdownNum.classList.add(v==='GO'?'go':'tick');
+    setStatus(v==='GO'?'WEAPONS LOCKED':`LAUNCHING IN ${v}...`);
+    setTimeout(tick, v==='GO'?700:800);
+  })();
+}
+
+// ── Reveal ─────────────────────────────────────────────────
+const SVG_ICONS = {
+  rock: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="50" cy="62" rx="28" ry="22" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="30" y="30" width="12" height="22" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="44" y="26" width="12" height="26" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="58" y="28" width="12" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="22" y="38" width="10" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="3"/>
+  </svg>`,
+  paper: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect x="30" y="40" width="12" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="44" y="30" width="12" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="58" y="32" width="12" height="42" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="22" y="44" width="10" height="26" rx="5" fill="none" stroke="currentColor" stroke-width="3"/>
+    <path d="M30 62 Q50 72 70 62" fill="none" stroke="currentColor" stroke-width="3"/>
+  </svg>`,
+  scissors: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect x="36" y="28" width="12" height="40" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <rect x="52" y="28" width="12" height="40" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+    <path d="M36 68 Q50 82 64 68" fill="none" stroke="currentColor" stroke-width="3"/>
+    <line x1="42" y1="52" x2="58" y2="52" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 3"/>
+  </svg>`
+};
+const ICON_COLORS = { rock: '#ff00aa', paper: '#00f5ff', scissors: '#ffe600' };
+
+function showAiIcon(choice, final) {
+  aiChoiceDisplay.classList.add('revealed');
+  aiChoiceDisplay.innerHTML = SVG_ICONS[choice];
+  const svg = aiChoiceDisplay.querySelector('svg');
+  if (svg) {
+    svg.style.color = ICON_COLORS[choice]; svg.style.display='block';
+    if (final) svg.style.filter=`drop-shadow(0 0 16px ${ICON_COLORS[choice]}) drop-shadow(0 0 40px ${ICON_COLORS[choice]})`;
+  }
+}
+
+function reveal() {
+  STATE.phase = 'reveal';
+  const aiChoice = CHOICES[Math.floor(Math.random()*3)];
+  STATE.aiChoice = aiChoice;
+  let cycles=0; aiStatus.textContent='PROCESSING...';
+  const iv = setInterval(() => {
+    showAiIcon(CHOICES[cycles%3], false); cycles++;
+    if (cycles>=14) {
+      clearInterval(iv);
+      showAiIcon(aiChoice, true);
+      aiStatus.textContent = aiChoice.toUpperCase();
+      computeResult();
+    }
+  }, 80);
+}
+
+function computeResult() {
+  const p=STATE.playerChoice, a=STATE.aiChoice;
+  let type = p===a ? 'draw' : OUTCOMES[p].beats===a ? 'win' : 'lose';
+  STATE.resultType = type;
+  if (type==='win') STATE.scores.human++;
+  else if (type==='lose') STATE.scores.ai++;
+  updateScore();
+  setTimeout(() => showResult(type, p, a), 400);
+}
+
+function updateScore() {
+  scoreHumanEl.textContent = String(STATE.scores.human).padStart(2,'0');
+  scoreAiEl.textContent    = String(STATE.scores.ai).padStart(2,'0');
+  const el = STATE.resultType==='win' ? scoreHumanEl : STATE.resultType==='lose' ? scoreAiEl : null;
+  if (el) {
+    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+    el.style.color = STATE.resultType==='win'?'var(--green)':'var(--red)';
+    setTimeout(()=>el.style.color='', 600);
+  }
+}
+
+function showResult(type, p, a) {
+  STATE.phase='result';
+  const labels = { rock:'ROCK', paper:'PAPER', scissors:'CUTS' };
+  rvPlayerIcon.textContent=labels[p]; rvPlayerIcon.style.color=ICON_COLORS[p];
+  rvAiIcon.textContent=labels[a];     rvAiIcon.style.color=ICON_COLORS[a];
+  const verdicts = { win:'VICTORY', lose:'DEFEAT', draw:'DRAW' };
+  resultVerdict.textContent=verdicts[type]; resultVerdict.className=`result-verdict ${type}`;
+  resultFlavor.textContent = FLAVOR[type][Math.floor(Math.random()*FLAVOR[type].length)];
+  resultOverlay.classList.add('active');
+  if (type==='win')  { burst('win');  shake(); beam('#00ff88'); setStatus('VICTORY CONFIRMED'); }
+  else if(type==='lose') { burst('lose'); shake(); beam('#ff2244'); setStatus('NEXUS WINS THIS ROUND'); }
+  else                   { burst('draw');        beam('#ffe600'); setStatus('DRAW — RECALIBRATING'); }
+}
+
+btnAgain.addEventListener('click', nextRound);
+function nextRound() {
+  resultOverlay.classList.remove('active');
+  STATE.round++; STATE.phase='pick'; STATE.playerChoice=null; STATE.aiChoice=null;
+  weaponsGrid.classList.remove('locked');
+  weaponCards.forEach(c=>c.classList.remove('selected'));
+  aiChoiceDisplay.classList.remove('revealed');
+  aiChoiceDisplay.innerHTML='<span class="ai-question">?</span>';
+  aiStatus.textContent='CALCULATING...';
+  roundNumEl.textContent=String(STATE.round).padStart(2,'0');
+  setStatus('SELECT YOUR WEAPON');
+}
+
+// ── Particle burst ─────────────────────────────────────────
+function burst(type) {
+  const cols = { win:['#00ff88','#00f5ff','#fff','#aaff00'], lose:['#ff2244','#ff00aa','#ff6600'], draw:['#ffe600','#ff9900','#fff','#00f5ff'] };
+  const pal=cols[type], n=type==='win'?80:50;
+  const cx=innerWidth/2, cy=innerHeight/2;
+  for (let i=0;i<n;i++) {
+    const p=document.createElement('div'); p.className='particle';
+    const ang=(Math.PI*2/n)*i+Math.random()*0.4, dist=120+Math.random()*280;
+    const tx=Math.cos(ang)*dist, ty=Math.sin(ang)*dist;
+    const sz=3+Math.random()*6, dur=0.6+Math.random()*0.7;
+    const col=pal[Math.floor(Math.random()*pal.length)];
+    p.style.cssText=`left:${cx}px;top:${cy}px;width:${sz}px;height:${sz}px;background:${col};box-shadow:0 0 ${sz*2}px ${col};--tx:${tx}px;--ty:${ty}px;--d:${dur}s;animation-delay:${Math.random()*0.1}s;`;
+    burstContainer.appendChild(p);
+    setTimeout(()=>p.remove(),(dur+0.2)*1000);
+  }
+}
+
+// ── Screen shake ───────────────────────────────────────────
+function shake() {
+  document.body.classList.remove('shake'); void document.body.offsetWidth;
+  document.body.classList.add('shake'); setTimeout(()=>document.body.classList.remove('shake'),500);
+}
+
+// ── Clash beam ─────────────────────────────────────────────
+function beam(color) {
+  clashCanvas.width=innerWidth; clashCanvas.height=innerHeight;
+  const ctx=clashCanvas.getContext('2d'), cx=innerWidth/2, cy=innerHeight/2;
+  let alpha=1;
+  (function draw() {
+    ctx.clearRect(0,0,clashCanvas.width,clashCanvas.height);
+    if(alpha<=0) return;
+    const g=ctx.createLinearGradient(0,cy,clashCanvas.width,cy);
+    g.addColorStop(0,'transparent'); g.addColorStop(0.3,color+'00');
+    g.addColorStop(0.5,color+'ff'); g.addColorStop(0.7,color+'00'); g.addColorStop(1,'transparent');
+    ctx.globalAlpha=alpha; ctx.fillStyle=g; ctx.fillRect(0,cy-3,clashCanvas.width,6);
+    ctx.fillStyle='#fff'; ctx.globalAlpha=alpha*0.7; ctx.fillRect(0,cy-1,clashCanvas.width,2);
+    const g2=ctx.createRadialGradient(cx,cy,0,cx,cy,100*(1-alpha+0.5));
+    g2.addColorStop(0,color+'cc'); g2.addColorStop(1,'transparent');
+    ctx.globalAlpha=alpha*0.6; ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(cx,cy,100,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1; alpha-=0.03; requestAnimationFrame(draw);
+  })();
+}
+
+// ── Cursor trail ───────────────────────────────────────────
+(function() {
+  const dots=[]; const N=6;
+  for(let i=0;i<N;i++){
+    const d=document.createElement('div');
+    d.style.cssText=`position:fixed;pointer-events:none;z-index:9999;border-radius:50%;width:${(N-i)*3}px;height:${(N-i)*3}px;background:rgba(0,245,255,${0.5-i*0.07});transition:left ${i*30+30}ms linear,top ${i*30+30}ms linear;transform:translate(-50%,-50%);mix-blend-mode:screen;`;
+    document.body.appendChild(d); dots.push(d);
+  }
+  window.addEventListener('mousemove',e=>dots.forEach(d=>{d.style.left=e.clientX+'px';d.style.top=e.clientY+'px';}));
+})();
+
+// ── Keyboard shortcuts ─────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if(STATE.phase==='pick'){
+    if(e.key.toLowerCase()==='r') pick('rock');
+    if(e.key.toLowerCase()==='p') pick('paper');
+    if(e.key.toLowerCase()==='s') pick('scissors');
+  }
+  if(STATE.phase==='result'&&e.key==='Enter') nextRound();
+});
+
+// ── HUD flicker ────────────────────────────────────────────
+const hudBar=document.querySelector('.hud-bar');
+setInterval(()=>{ if(Math.random()<0.08){ hudBar.style.opacity='0.6'; setTimeout(()=>hudBar.style.opacity='',60); } },500);
+
+function setStatus(m) { statusMsgEl.textContent=m; }
+</script>
+</body>
+</html>
